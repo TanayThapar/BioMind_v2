@@ -1,9 +1,60 @@
-export default function ResultCard({ result, visible, delay = 0 }) {
+import { useState } from 'react';
+import { BookOpen, ChevronDown, ChevronUp, ExternalLink, ShieldCheck } from 'lucide-react';
+import { PAPERS_DATA } from '../data/papersData';
+
+export default function ResultCard({ result, visible, delay = 0, disease }) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const scorePercent = Math.round(result.score * 100);
+
+  // Fuzzy match disease key for papersData lookup
+  const getDiseaseKey = (name) => {
+    if (!name) return 'ALS';
+    const lower = name.toLowerCase();
+    const matched = Object.keys(PAPERS_DATA).find(
+      (key) =>
+        key.toLowerCase().includes(lower) ||
+        lower.includes(key.toLowerCase().split("'")[0].toLowerCase())
+    );
+    return matched || 'ALS';
+  };
+
+  const diseaseKey = getDiseaseKey(disease);
+  const papers = PAPERS_DATA[diseaseKey] || [];
+
+  // Extract keywords to match from result.target (e.g., "TDP-43", "SOD1")
+  const getKeywords = () => {
+    if (!result.target) return [];
+    return result.target
+      .split(/[,()&/\-\s]+/)
+      .map(t => t.trim())
+      .filter(t => t.length > 2 && !['modulator', 'inhibitor', 'receptor', 'subunit', 'channel', 'kinase', 'activator', 'target', 'reference', 'and', 'with'].includes(t.toLowerCase()));
+  };
+
+  const keywords = getKeywords();
+  const matchedPapers = papers.filter(paper => {
+    const text = `${paper.title} ${paper.abstract}`.toLowerCase();
+    return keywords.some(kw => text.includes(kw.toLowerCase()));
+  }).slice(0, 3); // Limit to top 3 supporting papers for readability
+
+  // Helper to highlight matching keywords in text
+  const highlightText = (text, kws) => {
+    if (!kws || kws.length === 0) return text;
+    let highlighted = text;
+    const sortedKws = [...kws].sort((a, b) => b.length - a.length);
+    const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    
+    sortedKws.forEach(kw => {
+      const escaped = escapeRegExp(kw);
+      const regex = new RegExp(`(${escaped})`, 'gi');
+      highlighted = highlighted.replace(regex, '<mark class="highlight-target">$1</mark>');
+    });
+    
+    return <span dangerouslySetInnerHTML={{ __html: highlighted }} />;
+  };
 
   return (
     <div
-      className={`result-card ${visible ? 'result-card--visible' : ''}`}
+      className={`result-card ${visible ? 'result-card--visible' : ''} ${isExpanded ? 'result-card--expanded' : ''}`}
       style={{ animationDelay: `${delay}ms` }}
       id={`result-${result.rank}`}
     >
@@ -75,7 +126,7 @@ export default function ResultCard({ result, visible, delay = 0 }) {
         </div>
         <div className="result-meta-item">
           <span className="result-meta-label">Citations</span>
-          <span className="result-meta-value">{result.citations} papers</span>
+          <span className="result-meta-value">{matchedPapers.length > 0 ? matchedPapers.length : result.citations} papers</span>
         </div>
       </div>
 
@@ -87,17 +138,56 @@ export default function ResultCard({ result, visible, delay = 0 }) {
         </div>
       )}
 
-      {result.pmid && (
-        <div className="result-citation">
-          <span>Key reference: </span>
-          <a
-            href={`https://www.ncbi.nlm.nih.gov/pmc/articles/${result.pmid}/`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="result-pmid-link"
+      {/* Traceable Evidence Accordion Toggle */}
+      {matchedPapers.length > 0 && (
+        <div className="traceability-wrapper">
+          <button 
+            className={`traceability-toggle ${isExpanded ? 'traceability-toggle--active' : ''}`}
+            onClick={() => setIsExpanded(!isExpanded)}
+            aria-expanded={isExpanded}
           >
-            {result.pmid}
-          </a>
+            <div className="traceability-toggle__label">
+              <BookOpen size={14} className="traceability-toggle__icon" />
+              <span>Verify Evidence Traceability ({matchedPapers.length} papers matched)</span>
+            </div>
+            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </button>
+
+          {isExpanded && (
+            <div className="traceability-content">
+              <div className="traceability-intro">
+                <ShieldCheck size={14} className="text-success" style={{ color: '#10b981', marginRight: '6px' }} />
+                <span>The following publications directly support the biological linkage for target <strong>{result.target}</strong>:</span>
+              </div>
+              <div className="traceability-papers-list">
+                {matchedPapers.map((paper) => (
+                  <div key={paper.pmid} className="trace-paper-card">
+                    <div className="trace-paper-header">
+                      <span className="trace-paper-pmid">PMID: {paper.pmid}</span>
+                      <a
+                        href={`https://pubmed.ncbi.nlm.nih.gov/${paper.pmid}/`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="trace-paper-link"
+                      >
+                        <span>Open Source</span>
+                        <ExternalLink size={11} />
+                      </a>
+                    </div>
+                    <h4 className="trace-paper-title">{highlightText(paper.title, keywords)}</h4>
+                    <p className="trace-paper-abstract">
+                      {highlightText(
+                        paper.abstract.length > 220 
+                          ? paper.abstract.substring(0, 220) + '...' 
+                          : paper.abstract, 
+                        keywords
+                      )}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

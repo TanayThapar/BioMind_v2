@@ -241,6 +241,7 @@ function App() {
   const [inputValue, setInputValue] = useState('');
   const [apiResults, setApiResults] = useState(null); // null = use mock, array = use backend data
   const [graphData, setGraphData] = useState({ nodes: [], links: [] });
+  const [llmWarning, setLlmWarning] = useState(null); // null = no warning, string = show banner
 
   const runAnalysis = useCallback(() => {
     if (phase === 'running') return;
@@ -312,6 +313,15 @@ function App() {
           });
           return next;
         });
+        // Show warning banner if LLM was rate-limited / unavailable
+        const ps = apiData.pipeline_status;
+        if (ps && ps.llm_available === false) {
+          setLlmWarning(
+            'LLM rate limit reached — results are from curated biomedical databases (ChEMBL/FAERS). Scores and report are evidence-based but not LLM-synthesised.'
+          );
+        } else {
+          setLlmWarning(null);
+        }
       }
       // Ensure all agents show done
       setAgentStates((prev) =>
@@ -364,6 +374,7 @@ function App() {
     setInputValue('');
     setApiResults(null);
     setGraphData({ nodes: [], links: [] });
+    setLlmWarning(null);
   }, []);
 
   const handleKeyDown = (e) => {
@@ -545,6 +556,14 @@ function App() {
         </div>
       )}
 
+      {/* LLM fallback warning banner */}
+      {phase === 'done' && llmWarning && (
+        <div className="llm-warning-banner" role="alert" id="llm-warning-banner">
+          <span className="llm-warning-banner__icon" aria-hidden="true">⚠️</span>
+          <span>{llmWarning}</span>
+        </div>
+      )}
+
       {/* Tabs */}
       {phase !== 'idle' && (
         <div className="tabs" id="tabs" role="tablist">
@@ -705,6 +724,7 @@ function App() {
                           result={result}
                           visible={resultsVisible[i] ?? true}
                           delay={i * 120}
+                          disease={disease}
                         />
                       ))}
                     </div>
