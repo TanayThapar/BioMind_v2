@@ -655,8 +655,8 @@ function App() {
               <span>Multi-Agent Scientific Platform</span>
             </div>
             <p className="idle-hero__subtitle">
-              5 specialized AI agents autonomously cross-analyze 36M+ biomedical publications,
-              screen 14,000+ FDA-approved drugs, and compute mechanistic repurposing candidate scores in minutes.
+              5 specialized AI agents autonomously cross-analyze 1200+ biomedical publications
+              and compute mechanistic repurposing candidate scores in minutes.
             </p>
              <div className="idle-agents-preview" role="list" aria-label="Deployed agents">
               {AGENTS.map((agent) => {
