@@ -13,7 +13,7 @@ import ResultCard from './components/ResultCard';
 import EvidenceGraph from './components/EvidenceGraph';
 import AnalysisSummary from './components/AnalysisSummary';
 import LiteratureFeed from './components/LiteratureFeed';
-import { AGENTS, DEMO_DISEASE } from './data/mockData';
+import { AGENTS, DEMO_DISEASE, RESULTS } from './data/mockData';
 import './App.css';
 
 const TOTAL_DURATION = 16000; // ~16 seconds for full demo
@@ -322,6 +322,8 @@ function App() {
         } else {
           setLlmWarning(null);
         }
+      } else {
+        setApiResults(RESULTS);
       }
       // Ensure all agents show done
       setAgentStates((prev) =>
